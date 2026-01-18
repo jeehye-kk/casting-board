@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>가상캐스팅 통합 대시보드</title>
+    <style>
+        body { font-family: 'Pretendard', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; background: #f0f2f5; }
+        .admin-panel, .filter-panel { margin-bottom: 20px; text-align: center; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); width: 100%; max-width: 600px; }
+        
+        /* 관리자 패널 초기 상태 숨김 */
+        #admin-section { display: none; border: 2px dashed #ff4757; }
+        .btn-collect { background: #ff4757; border: none; padding: 10px 15px; color: white; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        
+        .filter-group { margin: 10px 0; padding: 10px; border-bottom: 1px solid #eee; }
+        .filter-title { font-weight: bold; margin-bottom: 8px; display: block; color: #555; }
+        .age-checkboxes { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+        .age-checkboxes label { cursor: pointer; background: #f8f9fa; padding: 5px 10px; border-radius: 15px; border: 1px solid #ddd; font-size: 0.9em; }
+        .age-checkboxes input:checked + span { color: #007bff; font-weight: bold; }
+
+        .card { background: white; width: 350px; border-radius: 20px; overflow: hidden; text-align: center; box-shadow: 0 10px 20px rgba(0,0,0,0.1); display: none; }
+        .card img { width: 100%; height: 450px; object-fit: cover; background: #eee; }
+        .info { padding: 20px; }
+        .nav-btn { padding: 10px 20px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 20px; }
+        .nav-btn:disabled { background: #ccc; cursor: not-allowed; }
+        #page-num { font-weight: bold; color: #444; }
+        #no-data { margin-top: 20px; color: #666; }
+        #logo-title { cursor: pointer; user-select: none; transition: 0.3s; }
+        #logo-title:hover { color: #007bff; }
+        select { padding: 5px; border-radius: 5px; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+
+    <h1 id="logo-title" onclick="checkAdmin()">🎬 가상캐스팅 대시보드</h1>
+
+    <div id="admin-section" class="admin-panel">
+        <p style="font-size: 12px; color: #ff4757; margin-bottom: 10px;">관리자 전용 데이터 갱신 패널</p>
+        <button class="btn-collect" onclick="fetchAndSave()">배우 데이터 수집/갱신</button>
+    </div>
+
+    <div class="filter-panel">
+        <div class="filter-group">
+            <select id="gender-filter" onchange="applyFilters()">
+                <option value="all">모든 성별</option>
+                <option value="남성">남성</option>
+                <option value="여성">여성</option>
+            </select>
+            <select id="sort-filter" onchange="applyFilters()">
+                <option value="pop_desc">인기도 높은순</option>
+                <option value="pop_asc">인기도 낮은순</option>
+                <option value="random">랜덤 정렬</option>
+            </select>
+            <label style="margin-left:15px; font-weight:bold; color:#d32f2f;">
+                <input type="checkbox" id="korean-only" onchange="applyFilters()" checked> 🇰🇷 한국 배우만 보기
+            </label>
+        </div>
+
+        <div class="filter-group">
+            <span class="filter-title">연령대 선택 (복수 가능)</span>
+            <div class="age-checkboxes">
+                <label><input type="checkbox" class="age-check" value="10" onchange="applyFilters()"> <span>10대</span></label>
+                <label><input type="checkbox" class="age-check" value="20" onchange="applyFilters()"> <span>20대</span></label>
+                <label><input type="checkbox" class="age-check" value="30" onchange="applyFilters()"> <span>30대</span></label>
+                <label><input type="checkbox" class="age-check" value="40" onchange="applyFilters()"> <span>40대</span></label>
+                <label><input type="checkbox" class="age-check" value="50" onchange="applyFilters()"> <span>50대</span></label>
+                <label><input type="checkbox" class="age-check" value="60" onchange="applyFilters()"> <span>60대</span></label>
+                <label><input type="checkbox" class="age-check" value="70" onchange="applyFilters()"> <span>70대</span></label>
+                <label><input type="checkbox" class="age-check" value="80" onchange="applyFilters()"> <span>80대</span></label>
+                <label><input type="checkbox" class="age-check" value="90" onchange="applyFilters()"> <span>90대</span></label>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" id="main-card">
+        <img id="actor-img" src="" alt="배우">
+        <div class="info">
+            <h2 id="actor-name">배우 이름</h2>
+            <p id="actor-meta">정보 로딩 중...</p>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <button class="nav-btn" id="prev-btn" onclick="changeActor(-1)">◀</button>
+                <span id="page-num">0 / 0</span>
+                <button class="nav-btn" id="next-btn" onclick="changeActor(1)">▶</button>
+            </div>
+        </div>
+    </div>
+    <div id="no-data">데이터를 불러오는 중입니다...</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script>
+        const SB_URL = 'https://gkmctygcikpjppssxcmt.supabase.co';
+        const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdrbWN0eWdjaWtwanBwc3N4Y210Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3MjYxNjksImV4cCI6MjA4NDMwMjE2OX0.gGZaQIwGViXkdRd4iltzRHYBqezW7ykaxi16a_VWKCg';
+        const TMDB_KEY = 'd23165ebc24f604f95eb08ceae01f4b6';
+        const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
+
+        let allActors = [];
+        let actors = [];
+        let currentIndex = 0;
+
+        // 관리자 모드 체크
+        function checkAdmin() {
+            const password = prompt("관리자 비밀번호를 입력하세요:");
+            if (password === "2024") { // 여기서 비밀번호 변경 가능
+                alert("관리자 모드가 활성화되었습니다.");
+                document.getElementById('admin-section').style.display = 'block';
+            } else if (password !== null) {
+                alert("비밀번호가 틀렸습니다.");
+            }
+        }
+
+        async function fetchAndSave() {
+            if(!confirm("최신 데이터를 수집/갱신할까요?")) return;
+            alert("데이터를 수집 중입니다. 잠시만 기다려주세요...");
+            try {
+                const actorIds = new Set();
+                const pages = 3;
+                const excludeGenres = "10764,10767";
+
+                for (let i = 1; i <= pages; i++) {
+                    const mRes = await fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&with_origin_country=KR&language=ko-KR&sort_by=popularity.desc&page=${i}`);
+                    const mData = await mRes.json();
+                    for (let m of mData.results) {
+                        const cRes = await fetch(`https://api.themoviedb.org/3/movie/${m.id}/credits?api_key=${TMDB_KEY}&language=ko-KR`);
+                        const cData = await cRes.json();
+                        if (cData.cast) cData.cast.slice(0, 10).forEach(c => actorIds.add(c.id));
+                    }
+                    const tRes = await fetch(`https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_KEY}&with_origin_country=KR&without_genres=${excludeGenres}&language=ko-KR&sort_by=popularity.desc&page=${i}`);
+                    const tData = await tRes.json();
+                    for (let t of tData.results) {
+                        const tcRes = await fetch(`https://api.themoviedb.org/3/tv/${t.id}/credits?api_key=${TMDB_KEY}&language=ko-KR`);
+                        const tcData = await tcRes.json();
+                        if (tcData.cast) tcData.cast.slice(0, 10).forEach(c => actorIds.add(c.id));
+                    }
+                }
+
+                for (let id of actorIds) {
+                    const dRes = await fetch(`https://api.themoviedb.org/3/person/${id}?api_key=${TMDB_KEY}&language=ko-KR`);
+                    const detail = await dRes.json();
+                    if (detail.known_for_department === 'Acting' && detail.profile_path) {
+                        await supabaseClient.from('actors').upsert([{ 
+                            actor_id: detail.id, 
+                            name: detail.name, 
+                            gender: detail.gender === 2 ? '남성' : '여성', 
+                            popularity: detail.popularity,
+                            profile_path: detail.profile_path,
+                            birthday: detail.birthday || null,
+                            place_of_birth: detail.place_of_birth || "정보 없음"
+                        }], { onConflict: 'actor_id' });
+                    }
+                }
+                alert("업데이트 완료!");
+                loadActors();
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadActors() {
+            const { data } = await supabaseClient.from('actors').select('*');
+            if (data) {
+                allActors = data;
+                applyFilters();
+            }
+        }
+
+        function applyFilters() {
+            const genderVal = document.getElementById('gender-filter').value;
+            const sortVal = document.getElementById('sort-filter').value;
+            const korOnly = document.getElementById('korean-only').checked;
+            const checkedAges = Array.from(document.querySelectorAll('.age-check:checked')).map(el => el.value);
+
+            let filtered = allActors.filter(a => {
+                const gMatch = (genderVal === 'all' || a.gender === genderVal);
+                
+                // 한국 배우 정밀 판별
+                const nameOnly = a.name.replace(/\s+/g, ''); 
+                const hasEnglish = /[A-Z]/.test(a.name);
+                const isKoreanBirth = a.place_of_birth && (a.place_of_birth.includes('Korea') || a.place_of_birth.includes('한국'));
+                const foreignChars = /[트브릭존워튼필엘쇼르슨디]/; 
+                const commonKoreanSurnames = /^[김이박최정강조윤장임한오서신권황안송전선배유고문양손명백허]/;
+
+                let isKorean = false;
+                if (isKoreanBirth) {
+                    isKorean = true;
+                } else if (!hasEnglish && nameOnly.length >= 2 && nameOnly.length <= 4) {
+                    if (commonKoreanSurnames.test(nameOnly) && !foreignChars.test(nameOnly)) isKorean = true;
+                    if (nameOnly === "허성태") isKorean = true;
+                }
+                if (korOnly && !isKorean) return false;
+
+                // 연령대 필터
+                let aMatch = false;
+                if (checkedAges.length === 0) {
+                    aMatch = true;
+                } else if (a.birthday) {
+                    const age = new Date().getFullYear() - new Date(a.birthday).getFullYear() + 1;
+                    const ageGroup = Math.floor(age / 10) * 10 + "";
+                    if (checkedAges.includes(ageGroup)) aMatch = true;
+                }
+                return gMatch && aMatch;
+            });
+
+            if (sortVal === "pop_desc") filtered.sort((a, b) => b.popularity - a.popularity);
+            else if (sortVal === "pop_asc") filtered.sort((a, b) => a.popularity - b.popularity);
+            else if (sortVal === "random") filtered.sort(() => Math.random() - 0.5);
+
+            actors = filtered;
+            currentIndex = 0;
+            updateUI();
+        }
+
+        function updateUI() {
+            if (actors.length > 0) {
+                document.getElementById('no-data').style.display = 'none';
+                document.getElementById('main-card').style.display = 'block';
+                render();
+            } else {
+                document.getElementById('main-card').style.display = 'none';
+                document.getElementById('no-data').style.display = 'block';
+                document.getElementById('no-data').innerText = "해당 조건의 배우가 없습니다.";
+            }
+        }
+
+        function render() {
+            if (actors.length === 0) return;
+            const actor = actors[currentIndex];
+            document.getElementById('actor-name').innerText = actor.name;
+            const age = actor.birthday ? (new Date().getFullYear() - new Date(actor.birthday).getFullYear() + 1) + "세" : "정보 없음";
+            document.getElementById('actor-meta').innerText = `${actor.gender} | ${age} | 인기도: ${actor.popularity.toFixed(1)}`;
+            document.getElementById('actor-img').src = `https://image.tmdb.org/t/p/w500${actor.profile_path}`;
+            document.getElementById('page-num').innerText = `${currentIndex + 1} / ${actors.length}`;
+            document.getElementById('prev-btn').disabled = (currentIndex === 0);
+            document.getElementById('next-btn').disabled = (currentIndex === actors.length - 1);
+        }
+
+        function changeActor(dir) { currentIndex += dir; render(); }
+        window.onload = loadActors;
+    </script>
+</body>
+</html>
