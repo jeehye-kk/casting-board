@@ -2,31 +2,59 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>가상캐스팅 통합 대시보드</title>
     <style>
-        body { font-family: 'Pretendard', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; background: #f0f2f5; }
-        .admin-panel, .filter-panel { margin-bottom: 20px; text-align: center; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); width: 100%; max-width: 600px; }
+        /* 기본 레이아웃 최적화 */
+        body { font-family: 'Pretendard', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 10px; background: #f0f2f5; margin: 0; }
         
-        /* 관리자 패널 초기 상태 숨김 */
-        #admin-section { display: none; border: 2px dashed #ff4757; }
-        .btn-collect { background: #ff4757; border: none; padding: 10px 15px; color: white; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        
-        .filter-group { margin: 10px 0; padding: 10px; border-bottom: 1px solid #eee; }
-        .filter-title { font-weight: bold; margin-bottom: 8px; display: block; color: #555; }
-        .age-checkboxes { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
-        .age-checkboxes label { cursor: pointer; background: #f8f9fa; padding: 5px 10px; border-radius: 15px; border: 1px solid #ddd; font-size: 0.9em; }
-        .age-checkboxes input:checked + span { color: #007bff; font-weight: bold; }
+        h1 { font-size: 1.5rem; margin: 15px 0; }
 
-        .card { background: white; width: 350px; border-radius: 20px; overflow: hidden; text-align: center; box-shadow: 0 10px 20px rgba(0,0,0,0.1); display: none; }
-        .card img { width: 100%; height: 450px; object-fit: cover; background: #eee; }
+        .admin-panel, .filter-panel { 
+            margin-bottom: 15px; text-align: center; background: white; 
+            padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
+            width: 95%; max-width: 500px; box-sizing: border-box;
+        }
+        
+        #admin-section { display: none; border: 2px dashed #ff4757; }
+        .btn-collect { background: #ff4757; border: none; padding: 12px; color: white; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; }
+
+        /* 필터 영역 모바일 가독성 향상 */
+        .filter-group { margin: 8px 0; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .filter-group:last-child { border-bottom: none; }
+        .filter-title { font-weight: bold; margin-bottom: 10px; display: block; color: #555; font-size: 0.95rem; }
+        
+        select { padding: 8px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; width: 45%; margin: 2px; } /* 모바일 사파리 줌 방지를 위해 16px 권장 */
+
+        .age-checkboxes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .age-checkboxes label { 
+            cursor: pointer; background: #f8f9fa; padding: 8px 4px; border-radius: 8px; 
+            border: 1px solid #ddd; font-size: 0.85rem; display: flex; align-items: center; justify-content: center;
+        }
+        .age-checkboxes input { margin-right: 5px; }
+
+        /* 2. 배우 카드 반응형 설정 (핵심) */
+        .card { 
+            background: white; width: 95%; max-width: 400px; /* PC에선 적당하게, 모바일에선 꽉 차게 */
+            border-radius: 20px; overflow: hidden; text-align: center; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1); display: none; margin-bottom: 30px;
+        }
+        .card img { 
+            width: 100%; aspect-ratio: 3/4; /* 이미지 비율 고정 */
+            object-fit: cover; background: #eee; 
+        }
+        
         .info { padding: 20px; }
-        .nav-btn { padding: 10px 20px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 20px; }
-        .nav-btn:disabled { background: #ccc; cursor: not-allowed; }
-        #page-num { font-weight: bold; color: #444; }
-        #no-data { margin-top: 20px; color: #666; }
-        #logo-title { cursor: pointer; user-select: none; transition: 0.3s; }
-        #logo-title:hover { color: #007bff; }
-        select { padding: 5px; border-radius: 5px; border: 1px solid #ddd; }
+        #actor-name { font-size: 1.4rem; margin: 10px 0; }
+        #actor-meta { font-size: 1rem; color: #666; margin-bottom: 15px; }
+
+        /* 하단 네비게이션 버튼 크기 키움 */
+        .nav-btn { padding: 12px 25px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 12px; font-size: 1.2rem; }
+        .nav-btn:disabled { background: #ccc; }
+        #page-num { font-weight: bold; color: #444; font-size: 1.1rem; }
+
+        #no-data { margin-top: 50px; color: #666; font-size: 1.1rem; }
+        #logo-title { cursor: pointer; user-select: none; }
     </style>
 </head>
 <body>
@@ -34,7 +62,6 @@
     <h1 id="logo-title" onclick="checkAdmin()">🎬 가상캐스팅 대시보드</h1>
 
     <div id="admin-section" class="admin-panel">
-        <p style="font-size: 12px; color: #ff4757; margin-bottom: 10px;">관리자 전용 데이터 갱신 패널</p>
         <button class="btn-collect" onclick="fetchAndSave()">배우 데이터 수집/갱신</button>
     </div>
 
@@ -46,17 +73,19 @@
                 <option value="여성">여성</option>
             </select>
             <select id="sort-filter" onchange="applyFilters()">
-                <option value="pop_desc">인기도 높은순</option>
-                <option value="pop_asc">인기도 낮은순</option>
-                <option value="random">랜덤 정렬</option>
+                <option value="pop_desc">인기순</option>
+                <option value="pop_asc">비인기순</option>
+                <option value="random">랜덤</option>
             </select>
-            <label style="margin-left:15px; font-weight:bold; color:#d32f2f;">
-                <input type="checkbox" id="korean-only" onchange="applyFilters()" checked> 🇰🇷 한국 배우만 보기
-            </label>
+            <div style="margin-top: 12px;">
+                <label style="font-weight:bold; color:#d32f2f; font-size: 0.9rem;">
+                    <input type="checkbox" id="korean-only" onchange="applyFilters()" checked> 🇰🇷 한국 배우만 보기
+                </label>
+            </div>
         </div>
 
         <div class="filter-group">
-            <span class="filter-title">연령대 선택 (복수 가능)</span>
+            <span class="filter-title">연령대 (중복 가능)</span>
             <div class="age-checkboxes">
                 <label><input type="checkbox" class="age-check" value="10" onchange="applyFilters()"> <span>10대</span></label>
                 <label><input type="checkbox" class="age-check" value="20" onchange="applyFilters()"> <span>20대</span></label>
@@ -86,7 +115,6 @@
     <div id="no-data">데이터를 불러오는 중입니다...</div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
     <script>
         const SB_URL = 'https://gkmctygcikpjppssxcmt.supabase.co';
         const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdrbWN0eWdjaWtwanBwc3N4Y210Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3MjYxNjksImV4cCI6MjA4NDMwMjE2OX0.gGZaQIwGViXkdRd4iltzRHYBqezW7ykaxi16a_VWKCg';
@@ -97,54 +125,38 @@
         let actors = [];
         let currentIndex = 0;
 
-        // 관리자 모드 체크
         function checkAdmin() {
             const password = prompt("관리자 비밀번호를 입력하세요:");
-            if (password === "2024") { // 여기서 비밀번호 변경 가능
-                alert("관리자 모드가 활성화되었습니다.");
+            if (password === "2024") { 
+                alert("관리자 모드 활성화");
                 document.getElementById('admin-section').style.display = 'block';
-            } else if (password !== null) {
-                alert("비밀번호가 틀렸습니다.");
             }
         }
 
         async function fetchAndSave() {
-            if(!confirm("최신 데이터를 수집/갱신할까요?")) return;
-            alert("데이터를 수집 중입니다. 잠시만 기다려주세요...");
+            if(!confirm("최신 데이터를 수집할까요?")) return;
+            alert("수집을 시작합니다. 잠시만 기다려주세요.");
             try {
                 const actorIds = new Set();
                 const pages = 3;
-                const excludeGenres = "10764,10767";
-
                 for (let i = 1; i <= pages; i++) {
                     const mRes = await fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&with_origin_country=KR&language=ko-KR&sort_by=popularity.desc&page=${i}`);
                     const mData = await mRes.json();
                     for (let m of mData.results) {
                         const cRes = await fetch(`https://api.themoviedb.org/3/movie/${m.id}/credits?api_key=${TMDB_KEY}&language=ko-KR`);
                         const cData = await cRes.json();
-                        if (cData.cast) cData.cast.slice(0, 10).forEach(c => actorIds.add(c.id));
-                    }
-                    const tRes = await fetch(`https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_KEY}&with_origin_country=KR&without_genres=${excludeGenres}&language=ko-KR&sort_by=popularity.desc&page=${i}`);
-                    const tData = await tRes.json();
-                    for (let t of tData.results) {
-                        const tcRes = await fetch(`https://api.themoviedb.org/3/tv/${t.id}/credits?api_key=${TMDB_KEY}&language=ko-KR`);
-                        const tcData = await tcRes.json();
-                        if (tcData.cast) tcData.cast.slice(0, 10).forEach(c => actorIds.add(c.id));
+                        if (cData.cast) cData.cast.slice(0, 8).forEach(c => actorIds.add(c.id));
                     }
                 }
-
                 for (let id of actorIds) {
                     const dRes = await fetch(`https://api.themoviedb.org/3/person/${id}?api_key=${TMDB_KEY}&language=ko-KR`);
                     const detail = await dRes.json();
                     if (detail.known_for_department === 'Acting' && detail.profile_path) {
                         await supabaseClient.from('actors').upsert([{ 
-                            actor_id: detail.id, 
-                            name: detail.name, 
+                            actor_id: detail.id, name: detail.name, 
                             gender: detail.gender === 2 ? '남성' : '여성', 
-                            popularity: detail.popularity,
-                            profile_path: detail.profile_path,
-                            birthday: detail.birthday || null,
-                            place_of_birth: detail.place_of_birth || "정보 없음"
+                            popularity: detail.popularity, profile_path: detail.profile_path,
+                            birthday: detail.birthday || null, place_of_birth: detail.place_of_birth || ""
                         }], { onConflict: 'actor_id' });
                     }
                 }
@@ -155,10 +167,7 @@
 
         async function loadActors() {
             const { data } = await supabaseClient.from('actors').select('*');
-            if (data) {
-                allActors = data;
-                applyFilters();
-            }
+            if (data) { allActors = data; applyFilters(); }
         }
 
         function applyFilters() {
@@ -169,8 +178,6 @@
 
             let filtered = allActors.filter(a => {
                 const gMatch = (genderVal === 'all' || a.gender === genderVal);
-                
-                // 한국 배우 정밀 판별
                 const nameOnly = a.name.replace(/\s+/g, ''); 
                 const hasEnglish = /[A-Z]/.test(a.name);
                 const isKoreanBirth = a.place_of_birth && (a.place_of_birth.includes('Korea') || a.place_of_birth.includes('한국'));
@@ -178,19 +185,16 @@
                 const commonKoreanSurnames = /^[김이박최정강조윤장임한오서신권황안송전선배유고문양손명백허]/;
 
                 let isKorean = false;
-                if (isKoreanBirth) {
-                    isKorean = true;
-                } else if (!hasEnglish && nameOnly.length >= 2 && nameOnly.length <= 4) {
+                if (isKoreanBirth) isKorean = true;
+                else if (!hasEnglish && nameOnly.length >= 2 && nameOnly.length <= 4) {
                     if (commonKoreanSurnames.test(nameOnly) && !foreignChars.test(nameOnly)) isKorean = true;
                     if (nameOnly === "허성태") isKorean = true;
                 }
                 if (korOnly && !isKorean) return false;
 
-                // 연령대 필터
                 let aMatch = false;
-                if (checkedAges.length === 0) {
-                    aMatch = true;
-                } else if (a.birthday) {
+                if (checkedAges.length === 0) aMatch = true;
+                else if (a.birthday) {
                     const age = new Date().getFullYear() - new Date(a.birthday).getFullYear() + 1;
                     const ageGroup = Math.floor(age / 10) * 10 + "";
                     if (checkedAges.includes(ageGroup)) aMatch = true;
@@ -224,7 +228,7 @@
             const actor = actors[currentIndex];
             document.getElementById('actor-name').innerText = actor.name;
             const age = actor.birthday ? (new Date().getFullYear() - new Date(actor.birthday).getFullYear() + 1) + "세" : "정보 없음";
-            document.getElementById('actor-meta').innerText = `${actor.gender} | ${age} | 인기도: ${actor.popularity.toFixed(1)}`;
+            document.getElementById('actor-meta').innerText = `${actor.gender} | ${age} | 인기: ${actor.popularity.toFixed(1)}`;
             document.getElementById('actor-img').src = `https://image.tmdb.org/t/p/w500${actor.profile_path}`;
             document.getElementById('page-num').innerText = `${currentIndex + 1} / ${actors.length}`;
             document.getElementById('prev-btn').disabled = (currentIndex === 0);
